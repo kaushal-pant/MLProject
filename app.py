@@ -39,6 +39,12 @@ def load_training_metrics():
     return pd.read_csv(METRICS_PATH)
 
 
+@st.cache_data
+def load_full_dataset():
+    dataset_path = ROOT / "dataset_used.csv"
+    return pd.read_csv(dataset_path)
+
+
 def model_file_map():
     return {
         "Logistic Regression": MODELS_DIR / "logistic_regression.joblib",
@@ -94,46 +100,44 @@ def show_home_page():
     
     st.divider()
     
-    # Models and Metrics Information
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.subheader("Models: 5 Classification Algorithms")
-        st.markdown("""
-        1. **Logistic Regression**
-        2. **Decision Tree Classifier**
-        3. **K-Nearest Neighbors (KNN) Classifier**
-        4. **Naive Bayes Classifier (GaussianNB)**
-        5. **Random Forest Classifier (Ensemble)**
-        """)
-    
-    with col2:
-        st.subheader("Metrics: 6 Evaluation Metrics")
-        st.markdown("""
-        - **Accuracy**, **AUC**, **Precision**
-        - **Recall**, **F1**, **MCC**
-        """)
-    
-    st.divider()
-    
-    # Dataset Information
-    st.subheader("Dataset Information")
-    dataset_info = load_dataset_info()
-    
+    # Colored boxes for Dataset, Models, and Metrics
     col1, col2, col3 = st.columns(3)
-    with col1:
-        st.metric("Total Instances", dataset_info['instances'])
-    with col2:
-        st.metric("Number of Features", dataset_info['features'])
-    with col3:
-        st.metric("Classes", len(dataset_info['target_classes']))
     
-    st.markdown(f"""
-    - **Dataset Name:** {dataset_info['dataset_name']}
-    - **Source:** {dataset_info['source']}
-    - **Target Classes:** {', '.join(dataset_info['target_classes']).title()}
-    - **Train/Test Split:** {dataset_info['train_size']}/{dataset_info['test_size']}
-    """)
+    with col1:
+        st.markdown("""
+        <div style="background-color: #D6EAF8; padding: 20px; border-radius: 10px; border-left: 5px solid #3498DB;">
+            <h4 style="color: #1F618D; margin-top: 0;">Dataset: Breast Cancer Classification</h4>
+            <ul style="color: #1F618D;">
+                <li><b>Instances:</b> 569</li>
+                <li><b>Features:</b> 30</li>
+            </ul>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col2:
+        st.markdown("""
+        <div style="background-color: #FEF9E7; padding: 20px; border-radius: 10px; border-left: 5px solid #F39C12;">
+            <h4 style="color: #9A7D0A; margin-top: 0;">Models: 5 Classification Algorithms</h4>
+            <ul style="color: #9A7D0A;">
+                <li>Logistic Regression</li>
+                <li>Decision Tree</li>
+                <li>K-Nearest Neighbors (KNN)</li>
+                <li>Naive Bayes (GaussianNB)</li>
+                <li>Random Forest (Ensemble)</li>
+            </ul>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col3:
+        st.markdown("""
+        <div style="background-color: #D5F4E6; padding: 20px; border-radius: 10px; border-left: 5px solid #28B463;">
+            <h4 style="color: #186A3B; margin-top: 0;">Metrics: 6 Evaluation Metrics</h4>
+            <ul style="color: #186A3B;">
+                <li>Accuracy, AUC, Precision</li>
+                <li>Recall, F1, MCC</li>
+            </ul>
+        </div>
+        """, unsafe_allow_html=True)
     
     st.divider()
     
@@ -164,12 +168,121 @@ def show_home_page():
     # Instructions
     st.subheader("How to Use")
     st.markdown("""
-    1. Navigate to **"Prediction"** to evaluate individual models with uploaded test data
-    2. Navigate to **"Result Comparison"** to see all models compared with performance charts and confusion matrices
-    3. Upload your test data CSV file (must include the target column)
-    4. View predictions, metrics, confusion matrices, and classification reports
+    1. Navigate to **"Dataset Overview"** to explore the dataset with samples and statistics
+    2. Navigate to **"Prediction"** to evaluate individual models with uploaded test data
+    3. Navigate to **"Result Comparison"** to see all models compared with performance charts and confusion matrices
     
     **Tip:** Use the provided `test_data.csv` file for testing
+    """)
+
+
+def show_dataset_page():
+    st.title("Dataset Overview")
+    st.markdown("### Breast Cancer Wisconsin (Diagnostic) Dataset")
+    
+    st.divider()
+    
+    # Load dataset
+    dataset_df = load_full_dataset()
+    dataset_info = load_dataset_info()
+    
+    # Dataset Overview
+    st.subheader("Dataset Information")
+    
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.metric("Total Instances", dataset_info['instances'])
+    with col2:
+        st.metric("Features", dataset_info['features'])
+    with col3:
+        st.metric("Classes", len(dataset_info['target_classes']))
+    with col4:
+        st.metric("Missing Values", 0)
+    
+    st.markdown(f"""
+    - **Dataset Name:** {dataset_info['dataset_name']}
+    - **Source:** {dataset_info['source']}
+    - **Task Type:** Binary Classification
+    - **Target Classes:** {', '.join(dataset_info['target_classes']).title()}
+    - **Train/Test Split:** {dataset_info['train_size']}/{dataset_info['test_size']}
+    """)
+    
+    st.divider()
+    
+    # Class Distribution
+    st.subheader("Class Distribution")
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        class_counts = dataset_df['target'].value_counts().sort_index()
+        st.markdown(f"""
+        - **Malignant (0):** {class_counts[0]} instances ({class_counts[0]/len(dataset_df)*100:.1f}%)
+        - **Benign (1):** {class_counts[1]} instances ({class_counts[1]/len(dataset_df)*100:.1f}%)
+        """)
+    
+    with col2:
+        # Simple bar chart for class distribution
+        fig, ax = plt.subplots(figsize=(5, 3))
+        class_counts.plot(kind='bar', color=['#FF6B6B', '#4ECDC4'], ax=ax, edgecolor='black')
+        ax.set_xticklabels(['Malignant', 'Benign'], rotation=0)
+        ax.set_ylabel('Count', fontweight='bold')
+        ax.set_title('Class Distribution', fontweight='bold')
+        ax.grid(axis='y', alpha=0.3)
+        plt.tight_layout()
+        st.pyplot(fig)
+    
+    st.divider()
+    
+    # Dataset Sample
+    st.subheader("Dataset Sample")
+    st.markdown("**First 10 rows of the dataset:**")
+    
+    # Show first 10 rows with target label
+    sample_df = dataset_df.head(10).copy()
+    sample_df['target_label'] = sample_df['target'].map({0: 'Malignant', 1: 'Benign'})
+    
+    # Reorder columns to show target_label first
+    cols = ['target_label'] + [col for col in sample_df.columns if col not in ['target', 'target_label']]
+    st.dataframe(sample_df[cols], use_container_width=True, height=400)
+    
+    st.divider()
+    
+    # Feature Statistics
+    st.subheader("Feature Statistics")
+    st.markdown("**Summary statistics for all features:**")
+    
+    # Get feature columns (exclude target)
+    feature_cols = [col for col in dataset_df.columns if col != 'target']
+    stats_df = dataset_df[feature_cols].describe().T
+    
+    # Round to 4 decimal places
+    stats_df = stats_df.round(4)
+    
+    # Display with color gradient
+    st.dataframe(
+        stats_df.style.background_gradient(subset=['mean'], cmap='Blues'),
+        use_container_width=True,
+        height=600
+    )
+    
+    st.divider()
+    
+    # Feature Categories
+    st.subheader("Feature Categories")
+    st.markdown("""
+    The 30 features are organized into three categories based on the cell nucleus measurements:
+    
+    **1. Mean Features (10 features):**
+    - mean radius, mean texture, mean perimeter, mean area, mean smoothness
+    - mean compactness, mean concavity, mean concave points, mean symmetry, mean fractal dimension
+    
+    **2. Standard Error Features (10 features):**
+    - radius error, texture error, perimeter error, area error, smoothness error
+    - compactness error, concavity error, concave points error, symmetry error, fractal dimension error
+    
+    **3. Worst/Largest Features (10 features):**
+    - worst radius, worst texture, worst perimeter, worst area, worst smoothness
+    - worst compactness, worst concavity, worst concave points, worst symmetry, worst fractal dimension
     """)
 
 
@@ -447,7 +560,7 @@ def main():
     
     page = st.sidebar.radio(
         "Go to",
-        ["Home", "Prediction", "Result Comparison"],
+        ["Home", "Dataset Overview", "Prediction", "Result Comparison"],
         label_visibility="collapsed"
     )
     
@@ -465,6 +578,8 @@ def main():
     # Page routing
     if page == "Home":
         show_home_page()
+    elif page == "Dataset Overview":
+        show_dataset_page()
     elif page == "Prediction":
         show_prediction_page()
     else:
