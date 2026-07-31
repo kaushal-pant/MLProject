@@ -61,14 +61,17 @@ def compute_metrics(y_true, y_pred, y_proba=None):
     }
 
 
-def draw_confusion_matrix(y_true, y_pred, model_name):
+def draw_confusion_matrix(y_true, y_pred, model_name, title_override=None):
     cm = confusion_matrix(y_true, y_pred)
     fig, ax = plt.subplots(figsize=(6, 5))
-    sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", cbar=True, ax=ax,
+    sns.heatmap(cm, annot=True, fmt="d", cmap="YlGnBu", cbar=True, ax=ax,
                 xticklabels=CLASS_LABELS, yticklabels=CLASS_LABELS)
     ax.set_xlabel("Predicted", fontsize=12, fontweight='bold')
     ax.set_ylabel("Actual", fontsize=12, fontweight='bold')
-    ax.set_title(f"Confusion Matrix - {model_name}", fontsize=14, fontweight='bold', pad=15)
+    if title_override:
+        ax.set_title(title_override, fontsize=14, fontweight='bold', pad=15)
+    else:
+        ax.set_title(f"Confusion Matrix - {model_name}", fontsize=14, fontweight='bold', pad=15)
     plt.tight_layout()
     st.pyplot(fig)
 
@@ -88,6 +91,28 @@ def show_home_page():
     - Upload test data and get real-time predictions
     - Visualize results with confusion matrices and classification reports
     """)
+    
+    st.divider()
+    
+    # Models and Metrics Information
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.subheader("Models: 5 Classification Algorithms")
+        st.markdown("""
+        1. **Logistic Regression**
+        2. **Decision Tree Classifier**
+        3. **K-Nearest Neighbors (KNN) Classifier**
+        4. **Naive Bayes Classifier (GaussianNB)**
+        5. **Random Forest Classifier (Ensemble)**
+        """)
+    
+    with col2:
+        st.subheader("Metrics: 6 Evaluation Metrics")
+        st.markdown("""
+        - **Accuracy**, **AUC**, **Precision**
+        - **Recall**, **F1**, **MCC**
+        """)
     
     st.divider()
     
@@ -112,8 +137,8 @@ def show_home_page():
     
     st.divider()
     
-    # Models Comparison
-    st.subheader("Models Performance Comparison")
+    # Models Training Performance
+    st.subheader("Models Training Performance")
     training_metrics_df = load_training_metrics()
     
     # Display metrics table
@@ -125,7 +150,7 @@ def show_home_page():
             "recall": "{:.4f}",
             "f1": "{:.4f}",
             "mcc": "{:.4f}",
-        }).background_gradient(subset=['f1'], cmap='RdYlGn'),
+        }).background_gradient(subset=['f1'], cmap='YlGn'),
         use_container_width=True
     )
     
@@ -139,10 +164,10 @@ def show_home_page():
     # Instructions
     st.subheader("How to Use")
     st.markdown("""
-    1. Navigate to **"Model Comparison"** to see all models compared on test data with bar charts
-    2. Navigate to **"Predict"** to evaluate individual models
+    1. Navigate to **"Prediction"** to evaluate individual models with uploaded test data
+    2. Navigate to **"Result Comparison"** to see all models compared with performance charts and confusion matrices
     3. Upload your test data CSV file (must include the target column)
-    4. View predictions, metrics, confusion matrix, and detailed classification report
+    4. View predictions, metrics, confusion matrices, and classification reports
     
     **Tip:** Use the provided `test_data.csv` file for testing
     """)
@@ -180,14 +205,14 @@ def show_prediction_page():
     
     missing = [feature for feature in feature_names if feature not in test_df.columns]
     if missing:
-        st.error(f"Missing required feature columns: {missing}")
+        st.error("Missing required feature columns. Please load correct test data.")
         st.stop()
     
     x_test = test_df[feature_names].copy()
     y_test = test_df["target"] if "target" in test_df.columns else None
     
     if y_test is None:
-        st.error("No target column found in uploaded file. Please include the 'target' column.")
+        st.error("Missing required target column. Please load correct test data.")
         st.stop()
     
     # Make predictions
@@ -224,7 +249,7 @@ def show_prediction_page():
         st.dataframe(result_df[["actual_label", "prediction_label"] + list(feature_names[:5])].head(20))
     
     # Confusion Matrix
-    st.markdown(f"#### Confusion Matrix - {selected_model}")
+    st.markdown("#### Confusion Matrix")
     draw_confusion_matrix(y_test, y_pred, selected_model)
     
     st.divider()
@@ -241,7 +266,7 @@ def show_prediction_page():
 
 
 def show_comparison_page():
-    st.title("Model Comparison on Test Data")
+    st.title("Result Comparison")
     st.markdown("### Compare all models performance on the same test dataset")
     
     st.divider()
@@ -258,13 +283,14 @@ def show_comparison_page():
     test_df = pd.read_csv(uploaded_file)
     
     if "target" not in test_df.columns:
-        st.error("No target column found in uploaded file. Please include the 'target' column.")
+        st.error("Missing required target column. Please load correct test data.")
         st.stop()
     
     y_test = test_df["target"]
     
-    # Dictionary to store results
+    # Dictionary to store results and predictions
     all_results = {}
+    all_predictions = {}
     
     # Run predictions for all models
     with st.spinner("Running predictions on all models..."):
@@ -277,8 +303,8 @@ def show_comparison_page():
                 # Check if all features are present
                 missing = [f for f in feature_names if f not in test_df.columns]
                 if missing:
-                    st.error(f"Missing features for {model_name}: {missing}")
-                    continue
+                    st.error("Missing required feature columns. Please load correct test data.")
+                    st.stop()
                 
                 x_test = test_df[feature_names].copy()
                 y_pred = model.predict(x_test)
@@ -292,6 +318,7 @@ def show_comparison_page():
                 # Compute metrics
                 metrics = compute_metrics(y_test, y_pred, y_proba)
                 all_results[model_name] = metrics
+                all_predictions[model_name] = y_pred
             except Exception as e:
                 st.error(f"Error with {model_name}: {str(e)}")
     
@@ -307,7 +334,7 @@ def show_comparison_page():
     st.divider()
     
     # Display metrics table
-    st.markdown("#### Metrics Comparison Table")
+    st.markdown("#### Performance Metrics Comparison")
     st.dataframe(
         comparison_df.style.format({
             "Accuracy": "{:.4f}",
@@ -316,18 +343,18 @@ def show_comparison_page():
             "Recall": "{:.4f}",
             "F1": "{:.4f}",
             "MCC": "{:.4f}",
-        }).background_gradient(subset=['F1'], cmap='RdYlGn'),
+        }).background_gradient(subset=['F1'], cmap='YlGn'),
         use_container_width=True
     )
     
     st.divider()
     
     # Bar charts for each metric
-    st.markdown("#### Performance Comparison - Bar Charts")
+    st.markdown("#### Performance Comparison Charts")
     
     metrics_to_plot = ["Accuracy", "AUC", "Precision", "Recall", "F1", "MCC"]
     
-    # Create 2x3 grid for plots
+    # Create 2x3 grid for plots with soothing colors
     for i in range(0, len(metrics_to_plot), 3):
         cols = st.columns(3)
         for j in range(3):
@@ -338,9 +365,12 @@ def show_comparison_page():
                     
                     x_pos = range(len(comparison_df))
                     values = comparison_df[metric_name]
-                    colors = plt.cm.viridis(values / values.max())
                     
-                    bars = ax.bar(x_pos, values, color=colors, edgecolor='black', linewidth=1.2)
+                    # Soothing pastel colors
+                    colors = ['#8DD3C7', '#FFFFB3', '#BEBADA', '#FB8072', '#80B1D3']
+                    
+                    bars = ax.bar(x_pos, values, color=colors[:len(comparison_df)], 
+                                  edgecolor='gray', linewidth=1, alpha=0.8)
                     
                     # Add value labels on bars
                     for bar in bars:
@@ -362,6 +392,31 @@ def show_comparison_page():
     
     st.divider()
     
+    # Confusion Matrices for all models
+    st.markdown("#### Confusion Matrices for All Models")
+    
+    # Create grid for confusion matrices (3 per row)
+    model_names = list(all_predictions.keys())
+    for i in range(0, len(model_names), 3):
+        cols = st.columns(3)
+        for j in range(3):
+            if i + j < len(model_names):
+                model_name = model_names[i + j]
+                y_pred = all_predictions[model_name]
+                
+                with cols[j]:
+                    cm = confusion_matrix(y_test, y_pred)
+                    fig, ax = plt.subplots(figsize=(5, 4))
+                    sns.heatmap(cm, annot=True, fmt="d", cmap="YlGnBu", cbar=True, ax=ax,
+                                xticklabels=CLASS_LABELS, yticklabels=CLASS_LABELS)
+                    ax.set_xlabel("Predicted", fontsize=10, fontweight='bold')
+                    ax.set_ylabel("Actual", fontsize=10, fontweight='bold')
+                    ax.set_title(f"{model_name}", fontsize=11, fontweight='bold', pad=10)
+                    plt.tight_layout()
+                    st.pyplot(fig)
+    
+    st.divider()
+    
     # Best model summary
     st.markdown("#### Summary")
     best_f1_idx = comparison_df['F1'].idxmax()
@@ -370,7 +425,7 @@ def show_comparison_page():
     
     col1, col2 = st.columns(2)
     with col1:
-        st.success(f"**Best Model (by F1):** {best_model} (F1: {best_f1:.4f})")
+        st.success(f"**Best Model (by F1 Score):** {best_model} (F1: {best_f1:.4f})")
     with col2:
         best_acc_idx = comparison_df['Accuracy'].idxmax()
         best_acc_model = comparison_df.loc[best_acc_idx, 'Model']
@@ -392,7 +447,7 @@ def main():
     
     page = st.sidebar.radio(
         "Go to",
-        ["Home", "Model Comparison", "Predict"],
+        ["Home", "Prediction", "Result Comparison"],
         label_visibility="collapsed"
     )
     
@@ -404,17 +459,16 @@ def main():
     Name: Kaushal Pant  
     BITS ID: 2025AC05981
     
-    Dataset: Breast Cancer Wisconsin  
-    Models: 5 Classification Algorithms
+    Dataset: Breast Cancer Wisconsin
     """)
     
     # Page routing
     if page == "Home":
         show_home_page()
-    elif page == "Model Comparison":
-        show_comparison_page()
-    else:
+    elif page == "Prediction":
         show_prediction_page()
+    else:
+        show_comparison_page()
 
 
 if __name__ == "__main__":
