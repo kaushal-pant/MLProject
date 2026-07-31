@@ -74,14 +74,13 @@ def draw_confusion_matrix(y_true, y_pred, model_name):
 
 
 def show_home_page():
-    st.title("🏠 Machine Learning Assignment 2")
-    st.markdown("### Breast Cancer Classification System")
-    st.markdown("**Student:** Kaushal Pant | **BITS ID:** 2025AC05981")
+    st.title("Machine Learning Classification Models")
+    st.markdown("### Breast Cancer Classification System - ML Assignment")
     
     st.divider()
     
-    # Project Overview
-    st.subheader("📋 Project Overview")
+    # Overview
+    st.subheader("Application Overview")
     st.markdown("""
     This application demonstrates multiple machine learning classification models trained on the 
     **Breast Cancer Wisconsin (Diagnostic)** dataset. The system allows you to:
@@ -93,7 +92,7 @@ def show_home_page():
     st.divider()
     
     # Dataset Information
-    st.subheader("📊 Dataset Information")
+    st.subheader("Dataset Information")
     dataset_info = load_dataset_info()
     
     col1, col2, col3 = st.columns(3)
@@ -114,7 +113,7 @@ def show_home_page():
     st.divider()
     
     # Models Comparison
-    st.subheader("🎯 Models Performance Comparison")
+    st.subheader("Models Performance Comparison")
     training_metrics_df = load_training_metrics()
     
     # Display metrics table
@@ -133,34 +132,34 @@ def show_home_page():
     # Best model highlight
     best_model = training_metrics_df.loc[training_metrics_df['f1'].idxmax(), 'model']
     best_f1 = training_metrics_df['f1'].max()
-    st.success(f"🏆 **Best Performing Model:** {best_model} (F1 Score: {best_f1:.4f})")
+    st.success(f"**Best Performing Model:** {best_model} (F1 Score: {best_f1:.4f})")
     
     st.divider()
     
     # Instructions
-    st.subheader("🚀 How to Use")
+    st.subheader("How to Use")
     st.markdown("""
-    1. Navigate to **"Predict"** from the sidebar
-    2. Upload your test data CSV file (must include the target column)
-    3. Select a classification model from the dropdown
+    1. Navigate to **"Model Comparison"** to see all models compared on test data with bar charts
+    2. Navigate to **"Predict"** to evaluate individual models
+    3. Upload your test data CSV file (must include the target column)
     4. View predictions, metrics, confusion matrix, and detailed classification report
     
-    💡 **Tip:** Use the provided `test_data.csv` file for testing
+    **Tip:** Use the provided `test_data.csv` file for testing
     """)
 
 
 def show_prediction_page():
-    st.title("🔮 Model Prediction & Evaluation")
+    st.title("Model Prediction & Evaluation")
     
     dataset_info = load_dataset_info()
     
     # File Upload Section
-    st.markdown("### 📤 Step 1: Upload Test Data")
-    st.info("📁 Upload a CSV file containing all required feature columns and the target column")
+    st.markdown("### Step 1: Upload Test Data")
+    st.info("Upload a CSV file containing all required feature columns and the target column")
     uploaded_file = st.file_uploader("Choose CSV file", type=["csv"], label_visibility="collapsed")
     
     # Model Selection
-    st.markdown("### 🤖 Step 2: Select Classification Model")
+    st.markdown("### Step 2: Select Classification Model")
     selected_model = st.selectbox(
         "Choose a model",
         list(model_file_map().keys()),
@@ -168,7 +167,7 @@ def show_prediction_page():
     )
     
     if uploaded_file is None:
-        st.warning("⚠️ Please upload test_data.csv to continue")
+        st.warning("Please upload test_data.csv to continue")
         st.stop()
     
     # Load model
@@ -181,14 +180,14 @@ def show_prediction_page():
     
     missing = [feature for feature in feature_names if feature not in test_df.columns]
     if missing:
-        st.error(f"❌ Missing required feature columns: {missing}")
+        st.error(f"Missing required feature columns: {missing}")
         st.stop()
     
     x_test = test_df[feature_names].copy()
     y_test = test_df["target"] if "target" in test_df.columns else None
     
     if y_test is None:
-        st.error("❌ No target column found in uploaded file. Please include the 'target' column.")
+        st.error("No target column found in uploaded file. Please include the 'target' column.")
         st.stop()
     
     # Make predictions
@@ -201,7 +200,7 @@ def show_prediction_page():
     
     # Display Results
     st.divider()
-    st.markdown("### 📊 Step 3: Results")
+    st.markdown("### Step 3: Results")
     
     # Metrics
     st.markdown(f"#### Evaluation Metrics for **{selected_model}**")
@@ -217,7 +216,7 @@ def show_prediction_page():
     st.divider()
     
     # Predictions Table
-    with st.expander("📋 View Predictions (First 20 rows)", expanded=False):
+    with st.expander("View Predictions (First 20 rows)", expanded=False):
         result_df = test_df.copy()
         result_df["prediction"] = y_pred
         result_df["prediction_label"] = result_df["prediction"].map({0: "Malignant", 1: "Benign"})
@@ -241,6 +240,144 @@ def show_prediction_page():
     )
 
 
+def show_comparison_page():
+    st.title("Model Comparison on Test Data")
+    st.markdown("### Compare all models performance on the same test dataset")
+    
+    st.divider()
+    
+    # File Upload Section
+    st.markdown("#### Upload Test Data")
+    uploaded_file = st.file_uploader("Choose CSV file", type=["csv"], key="comparison_upload")
+    
+    if uploaded_file is None:
+        st.warning("Please upload test_data.csv to see model comparison")
+        st.stop()
+    
+    # Load test data
+    test_df = pd.read_csv(uploaded_file)
+    
+    if "target" not in test_df.columns:
+        st.error("No target column found in uploaded file. Please include the 'target' column.")
+        st.stop()
+    
+    y_test = test_df["target"]
+    
+    # Dictionary to store results
+    all_results = {}
+    
+    # Run predictions for all models
+    with st.spinner("Running predictions on all models..."):
+        for model_name, model_path in model_file_map().items():
+            try:
+                payload = joblib.load(model_path)
+                model = payload["model"]
+                feature_names = payload["feature_names"]
+                
+                # Check if all features are present
+                missing = [f for f in feature_names if f not in test_df.columns]
+                if missing:
+                    st.error(f"Missing features for {model_name}: {missing}")
+                    continue
+                
+                x_test = test_df[feature_names].copy()
+                y_pred = model.predict(x_test)
+                
+                # Get probabilities if available
+                if hasattr(model, "predict_proba"):
+                    y_proba = model.predict_proba(x_test)[:, 1]
+                else:
+                    y_proba = None
+                
+                # Compute metrics
+                metrics = compute_metrics(y_test, y_pred, y_proba)
+                all_results[model_name] = metrics
+            except Exception as e:
+                st.error(f"Error with {model_name}: {str(e)}")
+    
+    if not all_results:
+        st.error("No models could be evaluated. Please check your data.")
+        st.stop()
+    
+    # Create comparison DataFrame
+    comparison_df = pd.DataFrame(all_results).T
+    comparison_df.index.name = "Model"
+    comparison_df = comparison_df.reset_index()
+    
+    st.divider()
+    
+    # Display metrics table
+    st.markdown("#### Metrics Comparison Table")
+    st.dataframe(
+        comparison_df.style.format({
+            "Accuracy": "{:.4f}",
+            "AUC": "{:.4f}",
+            "Precision": "{:.4f}",
+            "Recall": "{:.4f}",
+            "F1": "{:.4f}",
+            "MCC": "{:.4f}",
+        }).background_gradient(subset=['F1'], cmap='RdYlGn'),
+        use_container_width=True
+    )
+    
+    st.divider()
+    
+    # Bar charts for each metric
+    st.markdown("#### Performance Comparison - Bar Charts")
+    
+    metrics_to_plot = ["Accuracy", "AUC", "Precision", "Recall", "F1", "MCC"]
+    
+    # Create 2x3 grid for plots
+    for i in range(0, len(metrics_to_plot), 3):
+        cols = st.columns(3)
+        for j in range(3):
+            if i + j < len(metrics_to_plot):
+                metric_name = metrics_to_plot[i + j]
+                with cols[j]:
+                    fig, ax = plt.subplots(figsize=(5, 4))
+                    
+                    x_pos = range(len(comparison_df))
+                    values = comparison_df[metric_name]
+                    colors = plt.cm.viridis(values / values.max())
+                    
+                    bars = ax.bar(x_pos, values, color=colors, edgecolor='black', linewidth=1.2)
+                    
+                    # Add value labels on bars
+                    for bar in bars:
+                        height = bar.get_height()
+                        ax.text(bar.get_x() + bar.get_width()/2., height,
+                                f'{height:.4f}',
+                                ha='center', va='bottom', fontsize=9, fontweight='bold')
+                    
+                    ax.set_xlabel('Model', fontsize=10, fontweight='bold')
+                    ax.set_ylabel(metric_name, fontsize=10, fontweight='bold')
+                    ax.set_title(f'{metric_name} Comparison', fontsize=11, fontweight='bold')
+                    ax.set_xticks(x_pos)
+                    ax.set_xticklabels(comparison_df['Model'], rotation=45, ha='right', fontsize=8)
+                    ax.set_ylim(0, min(1.0, values.max() * 1.15))
+                    ax.grid(axis='y', alpha=0.3, linestyle='--')
+                    
+                    plt.tight_layout()
+                    st.pyplot(fig)
+    
+    st.divider()
+    
+    # Best model summary
+    st.markdown("#### Summary")
+    best_f1_idx = comparison_df['F1'].idxmax()
+    best_model = comparison_df.loc[best_f1_idx, 'Model']
+    best_f1 = comparison_df.loc[best_f1_idx, 'F1']
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        st.success(f"**Best Model (by F1):** {best_model} (F1: {best_f1:.4f})")
+    with col2:
+        best_acc_idx = comparison_df['Accuracy'].idxmax()
+        best_acc_model = comparison_df.loc[best_acc_idx, 'Model']
+        best_acc = comparison_df.loc[best_acc_idx, 'Accuracy']
+        st.info(f"**Best Model (by Accuracy):** {best_acc_model} (Acc: {best_acc:.4f})")
+
+
 def main():
     st.set_page_config(
         page_title="ML Assignment 2 - Breast Cancer Classification",
@@ -250,21 +387,21 @@ def main():
     )
     
     # Sidebar Navigation
-    st.sidebar.title("🔬 Navigation")
+    st.sidebar.title("Navigation")
     st.sidebar.markdown("---")
     
     page = st.sidebar.radio(
         "Go to",
-        ["🏠 Home", "🔮 Predict"],
+        ["Home", "Model Comparison", "Predict"],
         label_visibility="collapsed"
     )
     
     st.sidebar.markdown("---")
-    st.sidebar.markdown("### 📚 About")
+    st.sidebar.markdown("### About")
     st.sidebar.info("""
     **Machine Learning Assignment 2**
     
-    Student: Kaushal Pant  
+    Name: Kaushal Pant  
     BITS ID: 2025AC05981
     
     Dataset: Breast Cancer Wisconsin  
@@ -272,8 +409,10 @@ def main():
     """)
     
     # Page routing
-    if page == "🏠 Home":
+    if page == "Home":
         show_home_page()
+    elif page == "Model Comparison":
+        show_comparison_page()
     else:
         show_prediction_page()
 
