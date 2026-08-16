@@ -1,12 +1,13 @@
 import json
 from pathlib import Path
 
-import joblib
 from sklearn.datasets import load_breast_cancer
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
 import streamlit as st
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import (
     accuracy_score,
     classification_report,
@@ -17,11 +18,15 @@ from sklearn.metrics import (
     recall_score,
     roc_auc_score,
 )
+from sklearn.model_selection import train_test_split
+from sklearn.naive_bayes import GaussianNB
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
+from sklearn.tree import DecisionTreeClassifier
 
 
 ROOT = Path(__file__).resolve().parent
-ARTIFACTS_DIR = ROOT / "artifacts"
-MODELS_DIR = ROOT / "model"
 METRICS_PATH = ROOT / "model_metrics.csv"
 DATASET_INFO_PATH = ROOT / "dataset_info.json"
 
@@ -31,12 +36,26 @@ CLASS_LABELS = ["Malignant", "Benign"]
 
 @st.cache_data
 def load_dataset_info():
+    if not DATASET_INFO_PATH.exists():
+        return {
+            "dataset_name": "Breast Cancer Wisconsin (Diagnostic)",
+            "source": "UCI Machine Learning Repository (available via scikit-learn)",
+            "instances": 569,
+            "features": 30,
+            "target_classes": ["malignant", "benign"],
+            "train_size": 455,
+            "test_size": 114,
+        }
     with open(DATASET_INFO_PATH, "r", encoding="utf-8") as fp:
         return json.load(fp)
 
 
 @st.cache_data
 def load_training_metrics():
+    if not METRICS_PATH.exists():
+        return pd.DataFrame(
+            columns=["model", "accuracy", "auc", "precision", "recall", "f1", "mcc"]
+        )
     return pd.read_csv(METRICS_PATH)
 
 
@@ -48,14 +67,47 @@ def load_full_dataset():
     return df
 
 
-def model_file_map():
+def build_models():
     return {
-        "Logistic Regression": MODELS_DIR / "logistic_regression.joblib",
-        "Decision Tree": MODELS_DIR / "decision_tree.joblib",
-        "KNN": MODELS_DIR / "knn.joblib",
-        "Naive Bayes": MODELS_DIR / "naive_bayes.joblib",
-        "Random Forest (Ensemble)": MODELS_DIR / "random_forest_ensemble.joblib",
+        "Logistic Regression": Pipeline(
+            [
+                ("scaler", StandardScaler()),
+                ("model", LogisticRegression(max_iter=2000, random_state=42)),
+            ]
+        ),
+        "Decision Tree": DecisionTreeClassifier(max_depth=6, random_state=42),
+        "KNN": Pipeline(
+            [
+                ("scaler", StandardScaler()),
+                ("model", KNeighborsClassifier(n_neighbors=7)),
+            ]
+        ),
+        "Naive Bayes": GaussianNB(),
+        "Random Forest (Ensemble)": RandomForestClassifier(
+            n_estimators=300, random_state=42
+        ),
     }
+
+
+@st.cache_resource
+def get_runtime_trained_models():
+    data = load_breast_cancer(as_frame=True)
+    x = data.data.copy()
+    y = data.target.copy()
+
+    x_train, _, y_train, _ = train_test_split(
+        x, y, test_size=0.2, stratify=y, random_state=42
+    )
+
+    trained = {}
+    for model_name, model in build_models().items():
+        model.fit(x_train, y_train)
+        trained[model_name] = {
+            "model": model,
+            "feature_names": list(x.columns),
+        }
+
+    return trained
 
 
 def compute_metrics(y_true, y_pred, y_proba=None):
@@ -305,7 +357,7 @@ def show_prediction_page():
     st.markdown("### Step 2: Select Classification Model")
     selected_model = st.selectbox(
         "Choose a model",
-        list(model_file_map().keys()),
+        list(build_models().keys()),
         label_visibility="collapsed"
     )
     
@@ -313,8 +365,9 @@ def show_prediction_page():
         st.warning("Please upload test_data.csv to continue")
         st.stop()
     
-    # Load model
-    payload = joblib.load(model_file_map()[selected_model])
+    # Load trained model from in-memory cache
+    runtime_models = get_runtime_trained_models()
+    payload = runtime_models[selected_model]
     model = payload["model"]
     feature_names = payload["feature_names"]
     
@@ -423,12 +476,12 @@ def show_comparison_page():
     # Dictionary to store results and predictions
     all_results = {}
     all_predictions = {}
+    runtime_models = get_runtime_trained_models()
     
     # Run predictions for all models
     with st.spinner("Running predictions on all models..."):
-        for model_name, model_path in model_file_map().items():
+        for model_name, payload in runtime_models.items():
             try:
-                payload = joblib.load(model_path)
                 model = payload["model"]
                 feature_names = payload["feature_names"]
                 
