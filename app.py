@@ -375,7 +375,7 @@ def show_prediction_page():
     report_df = pd.DataFrame(report).transpose()
     
     st.dataframe(
-        report_df.style.format("{:.4f}").background_gradient(subset=['f1-score'], cmap='RdYlGn'),
+        report_df.style.format("{:.4f}"),
         use_container_width=True
     )
 
