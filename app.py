@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 
 import joblib
+from sklearn.datasets import load_breast_cancer
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
@@ -41,8 +42,10 @@ def load_training_metrics():
 
 @st.cache_data
 def load_full_dataset():
-    dataset_path = ROOT / "dataset_used.csv"
-    return pd.read_csv(dataset_path)
+    data = load_breast_cancer(as_frame=True)
+    df = data.data.copy()
+    df["target"] = data.target
+    return df
 
 
 def model_file_map():
