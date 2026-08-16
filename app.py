@@ -145,16 +145,18 @@ def show_home_page():
     st.subheader("Models Training Performance")
     training_metrics_df = load_training_metrics()
     
-    # Display metrics table
+    # Display metrics table with 1-based numbering, no color coding
+    display_df = training_metrics_df.copy()
+    display_df.index = range(1, len(display_df) + 1)
     st.dataframe(
-        training_metrics_df.style.format({
+        display_df.style.format({
             "accuracy": "{:.4f}",
             "auc": "{:.4f}",
             "precision": "{:.4f}",
             "recall": "{:.4f}",
             "f1": "{:.4f}",
             "mcc": "{:.4f}",
-        }).background_gradient(subset=['f1'], cmap='YlGn'),
+        }),
         use_container_width=True
     )
     
@@ -378,22 +380,36 @@ def show_prediction_page():
     )
 
 
+@st.cache_data
+def load_default_test_data():
+    test_path = ROOT / "test_data.csv"
+    return pd.read_csv(test_path)
+
+
 def show_comparison_page():
     st.title("Result Comparison")
     st.markdown("### Compare all models performance on the same test dataset")
     
     st.divider()
     
-    # File Upload Section
-    st.markdown("#### Upload Test Data")
-    uploaded_file = st.file_uploader("Choose CSV file", type=["csv"], key="comparison_upload")
+    # Data source selection
+    st.markdown("#### Select Test Data Source")
+    data_source = st.radio(
+        "Data source",
+        ["Use pre-loaded test data", "Upload custom CSV"],
+        horizontal=True,
+        label_visibility="collapsed",
+    )
     
-    if uploaded_file is None:
-        st.warning("Please upload test_data.csv to see model comparison")
-        st.stop()
-    
-    # Load test data
-    test_df = pd.read_csv(uploaded_file)
+    if data_source == "Upload custom CSV":
+        uploaded_file = st.file_uploader("Choose CSV file", type=["csv"], key="comparison_upload")
+        if uploaded_file is None:
+            st.info("Please upload a CSV file to see model comparison, or switch to the pre-loaded test data option.")
+            st.stop()
+        test_df = pd.read_csv(uploaded_file)
+    else:
+        test_df = load_default_test_data()
+        st.success(f"Using pre-loaded test data — {len(test_df)} samples (test_data.csv)")
     
     if "target" not in test_df.columns:
         st.error("Missing required target column. Please load correct test data.")
@@ -446,17 +462,19 @@ def show_comparison_page():
     
     st.divider()
     
-    # Display metrics table
+    # Display metrics table — plain, no color coding
     st.markdown("#### Performance Metrics Comparison")
+    plain_df = comparison_df.copy()
+    plain_df.index = range(1, len(plain_df) + 1)
     st.dataframe(
-        comparison_df.style.format({
+        plain_df.style.format({
             "Accuracy": "{:.4f}",
             "AUC": "{:.4f}",
             "Precision": "{:.4f}",
             "Recall": "{:.4f}",
             "F1": "{:.4f}",
             "MCC": "{:.4f}",
-        }).background_gradient(subset=['F1'], cmap='YlGn'),
+        }),
         use_container_width=True
     )
     
