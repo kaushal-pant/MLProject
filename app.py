@@ -428,7 +428,7 @@ def show_prediction_page():
     # Classification Report
     st.markdown(f"#### Detailed Classification Report - {selected_model}")
     report_text = classification_report(y_test, y_pred, target_names=CLASS_LABELS)
-    st.text(report_text)
+    st.code(report_text, language="text")
 
 
 @st.cache_data
