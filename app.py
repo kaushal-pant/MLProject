@@ -427,13 +427,8 @@ def show_prediction_page():
     
     # Classification Report
     st.markdown(f"#### Detailed Classification Report - {selected_model}")
-    report = classification_report(y_test, y_pred, target_names=CLASS_LABELS, output_dict=True)
-    report_df = pd.DataFrame(report).transpose()
-    
-    st.dataframe(
-        report_df.style.format("{:.4f}"),
-        use_container_width=True
-    )
+    report_text = classification_report(y_test, y_pred, target_names=CLASS_LABELS)
+    st.text(report_text)
 
 
 @st.cache_data
