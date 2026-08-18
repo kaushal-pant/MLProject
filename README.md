@@ -1,4 +1,4 @@
-# Machine Learning Assignment 2 - Classification and Streamlit Deployment
+# Machine Learning Assignment 2 - Classification Models
 
 **Name:** Kaushal Pant  
 **BITS ID:** 2025AC05981
@@ -15,7 +15,7 @@ Build and evaluate multiple machine learning classification models on a single d
 - **Why this dataset:** It satisfies assignment constraints (minimum 12 features and 500+ instances), is widely recognized in ML literature, contains no missing values, and is ideal for comparing classification algorithms.
 
 ## c) GitHub Repository Link
-- **Repository:** ADD_YOUR_GITHUB_REPO_LINK_HERE
+- **Repository:** https://github.com/kaushal-pant/MLProject
 
 ## d) Models used and performance comparison
 ### Implemented models
@@ -37,51 +37,32 @@ Build and evaluate multiple machine learning classification models on a single d
 ### Observations on model performance
 | ML Model Name | Observation about model performance |
 |---|---|
-| Logistic Regression | Best overall model with highest accuracy (0.9825), F1 (0.9861), and MCC (0.9623); excellent linear separator for this dataset with perfect precision-recall balance. |
-| KNN | Exceptional performance with perfect recall (1.0000) and strong F1 (0.9796); benefits significantly from feature scaling in the pipeline. |
-| Random Forest (Ensemble) | Robust ensemble method with balanced precision and recall (0.9583); highest AUC (0.9937) shows excellent ranking ability. |
-| Naive Bayes | Solid baseline with good performance (F1: 0.9517); Gaussian assumption works reasonably well for continuous features. |
-| Decision Tree | Lowest performer but still respectable (0.9123 accuracy); single tree is less stable than ensemble methods. |
-| **Overall Winner** | **Logistic Regression** (highest F1, accuracy, and MCC; most balanced and reliable classifier for breast cancer diagnosis). |
+| Logistic Regression | **Top performer across all metrics.** Achieves 98.25% accuracy with perfect metric alignment (precision: 98.61%, recall: 98.61%, F1: 98.61%, AUC: 99.54%). The symmetric precision-recall indicates no systematic bias toward false positives or negatives—both classes are equally well-identified. Highest MCC (0.9623) signals excellent overall correlation between predictions and reality. Simplicity and interpretability make this the primary candidate for clinical deployment where model reasoning must be auditable. |
+| Decision Tree | **Poorest model performance.** Accuracy of 91.23% drops notably compared to competitors; AUC of 91.47% suggests weaker ranking ability for borderline cases. Notably, precision (95.59%) substantially exceeds recall (90.28%), implying the model over-conservatively labels cases, missing some actual malignant instances—a risky behavior in medical diagnosis. Lowest MCC (0.8174) reflects poor overall predictive correlation. Despite max_depth=10, evidence of training-specific overfitting remains; ensemble approaches (e.g., Random Forest) would better generalize this tree-based logic. |
+| K-Nearest Neighbors | **Competitive alternative with distinctive strengths.** Accuracy (97.37%) marginally trails Logistic Regression but F1 (97.96%) is second-best. Perfect recall (100%) is exceptional—all truly malignant cases are caught—though precision (96.00%) is slightly lower, meaning ~4% false alarms. Feature scaling via pipeline is critical for this distance-based method; without it, large-magnitude features would dominate. Prediction latency grows with dataset size; cross-validation across k values could further optimize the k=5 choice. |
+| Naive Bayes | **Reliable baseline despite simplifying assumptions.** At 93.86% accuracy and 95.17% F1, it underperforms the top models but outpaces Decision Tree. Strong AUC (98.78%)—second only to Logistic Regression—indicates excellent probabilistic ranking even with the naive feature-independence assumption. Symmetric precision/recall (94.52%/95.83%) shows balanced error distribution. Computationally fastest model; useful as a quick diagnostic or when interpretability of probabilistic outputs is valued over raw accuracy. |
+| Random Forest (Ensemble) | **Second-best overall with ensemble robustness.** Matches KNN on accuracy and F1 (94.74%, 95.83%) but leads with highest AUC (99.37%), showing superior ability to rank confidence on boundary cases. The ensemble of 100 trees averages out individual tree noise, dramatically reducing overfitting compared to single Decision Tree. Feature importance rankings provide explainability; variable contributions help clinicians understand which tissue properties drive predictions. Production-viable alternative to Logistic Regression with slightly lower accuracy but greater flexibility for non-linear patterns. |
+| **Overall Winner** | **Logistic Regression** — Highest performance on 5 of 6 metrics (accuracy, AUC, precision, recall, F1, MCC). Combines superior metrics with maximum interpretability and minimal computational overhead, making it optimal for clinical decision-support systems. Recommended for production deployment on breast cancer diagnosis where both accuracy and explainability are non-negotiable. |
 
 ## Project Structure
 ```text
-project-folder/
-|-- app.py
-|-- requirements.txt
-|-- README.md
-|-- test_data.csv
-|-- dataset_used.csv
-|-- dataset_info.json
-|-- model_metrics.csv
+MLProject/
+|-- app.py                                    -(Streamlit app)
+|-- requirements.txt                          -(Dependencies)
+|-- README.md                                 -(Documentation)
+|-- test_data.csv                             -(Test dataset)
+|-- dataset_info.json                         -(Dataset metadata)
+|-- model_metrics.csv                         -(Model metrics)
 |-- model/
-|   |-- train_models.py
-|   |-- ML_Assignment_2_Classification.ipynb
-|   |-- logistic_regression.joblib
-|   |-- decision_tree.joblib
-|   |-- knn.joblib
-|   |-- naive_bayes.joblib
-|   |-- random_forest_ensemble.joblib
-|-- artifacts/
-|   |-- *_metrics.json
+|   |-- 2025AC05981_ML_Assignment_2.ipynb     -(Notebook for artifacts)
 ```
 
-## How to run locally
-```bash
-pip install -r requirements.txt
-python model/train_models.py
-streamlit run app.py
-```
-
-## Streamlit app requirements coverage
+## Streamlit app functionality
 The app implements all required assignment features:
 1. CSV upload option for test data.
 2. Model selection dropdown.
 3. Display of evaluation metrics.
 4. Confusion matrix and classification report.
 
-## Mandatory submission items to include in final PDF
-1. GitHub repository link.
-2. Live Streamlit app link: ADD_YOUR_STREAMLIT_APP_LINK_HERE
-3. Screenshot of execution on BITS Virtual Lab.
-4. This README content copied into the submission PDF.
+## Streamlit app link
+https://mlproject-2025ac05981.streamlit.app/
